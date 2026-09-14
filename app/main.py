@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
+from app.api.routers import vehicles
 from app.core.exceptions import register_exception_handlers
 
 settings = get_settings()
@@ -18,8 +19,7 @@ app.add_middleware(
 
 register_exception_handlers(app)
 
-# Routers (vehicles, ownership transfer) are added here as they're implemented —
-# see ARCHITECTURE.md section 7 for the phased roadmap.
+app.include_router(vehicles.router)
 
 
 @app.get("/health")

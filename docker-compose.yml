@@ -1,0 +1,24 @@
+# api-fleet — sobe só este serviço, na mesma rede externa `escort-net` do gateway
+# (api-core). O Caddy roteia /fleet/* para `api-fleet:8000` (ver api-core/.env.example).
+#
+# Uso:
+#   docker network create escort-net   # se ainda não existe
+#   cp .env.example .env               # e preencha SUPABASE_URL / SUPABASE_SECRET_KEY
+#   docker compose up -d --build
+
+services:
+  api-fleet:
+    build: .
+    image: escortinroad/api-fleet:latest
+    container_name: api-fleet
+    restart: unless-stopped
+    env_file:
+      - .env
+    expose:
+      - "8000"
+    networks:
+      - escort-net
+
+networks:
+  escort-net:
+    external: true
