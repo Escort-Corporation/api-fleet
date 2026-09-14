@@ -11,6 +11,7 @@ from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError, Va
 from app.core.supabase_client import get_supabase_admin_client
 from app.models.vehicle import (
     TransferRequest,
+    VehicleCapacityOut,
     VehicleCreate,
     VehicleOut,
     VehicleUpdate,
@@ -146,6 +147,18 @@ def update_vehicle(user_id: str, vehicle_id: str, payload: VehicleUpdate) -> Veh
 def deactivate_vehicle(user_id: str, vehicle_id: str) -> VehicleOut:
     """Soft delete — não existe DELETE físico (ARCHITECTURE.md §4)."""
     return update_vehicle(user_id, vehicle_id, VehicleUpdate(status="inactive"))
+
+
+def get_vehicle_capacity(vehicle_id: str) -> VehicleCapacityOut:
+    """Leitura usada pelo api-matching para checar capacidade/compatibilidade
+    (ARCHITECTURE.md §7, fase 5) — não é escopada por dono: qualquer serviço
+    autenticado precisa poder consultar a capacidade de qualquer veículo para
+    cruzar com uma carga. Só expõe atributos técnicos, nunca dado de propriedade."""
+    client = get_supabase_admin_client()
+    res = client.table("vehicles").select("*").eq("id", vehicle_id).limit(1).execute()
+    if not res.data:
+        raise NotFoundError("Veículo não encontrado.")
+    return VehicleCapacityOut.model_validate(res.data[0])
 
 
 def transfer_ownership(user_id: str, vehicle_id: str, payload: TransferRequest) -> VehicleOut:

@@ -84,3 +84,17 @@ class TransferRequest(BaseModel):
 
     new_owner_type: OwnerType
     new_owner_id: str
+
+
+class VehicleCapacityOut(BaseModel):
+    """Projeção de leitura para o api-matching (ARCHITECTURE.md §7, fase 5) —
+    só a capacidade técnica do veículo, sem dado de propriedade."""
+
+    id: str
+    vehicle_type: str
+    attachment_type: str | None = None
+    height_m: float | None = None
+    width_m: float | None = None
+    weight_capacity_kg: float
+    volume_capacity_m3: float | None = None
+    status: VehicleStatus
