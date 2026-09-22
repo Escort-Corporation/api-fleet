@@ -165,6 +165,14 @@ Reaproveita a hierarquia `AppError` do `api-auth` (`ValidationError` 422, `Confl
 
 Casos específicos do Fleet: placa duplicada → 409 (`PLATE_ALREADY_EXISTS`), transferência por quem não é o dono vigente → 403, veículo inexistente → 404.
 
+> **Cobrir também os erros que o Starlette gera antes de chegar no código da aplicação**
+> (rota não mapeada → 404, método não permitido → 405): sem um handler pra
+> `StarletteHTTPException`, eles saem no formato padrão do FastAPI (`{"detail": "..."}`),
+> quebrando o contrato acima. Bug real encontrado em 2026-09-22 (testando `GET /fleet/`
+> pelo gateway) e corrigido nos três serviços — ver `register_exception_handlers` em
+> `app/core/exceptions.py`. Qualquer serviço novo (Python ou não) precisa cobrir esse caso
+> desde o início.
+
 ---
 
 ## 6. Segurança
