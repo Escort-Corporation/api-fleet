@@ -6,9 +6,18 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from postgrest.exceptions import APIError as PostgrestAPIError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from supabase_auth.errors import AuthApiError
 
 logger = logging.getLogger("app.errors")
+
+# Fallback error codes for HTTPException/Starlette-level failures (route not found, method
+# not allowed, ...) that never reach application code — so they still get the platform's
+# error envelope instead of FastAPI's default {"detail": "..."}.
+_HTTP_STATUS_ERROR_CODES: dict[int, str] = {
+    status.HTTP_404_NOT_FOUND: "NOT_FOUND",
+    status.HTTP_405_METHOD_NOT_ALLOWED: "METHOD_NOT_ALLOWED",
+}
 
 
 class AppError(Exception):
@@ -131,6 +140,12 @@ def register_exception_handlers(app: FastAPI) -> None:
             "Invalid request data.",
             jsonable_encoder(exc.errors()),
         )
+
+    @app.exception_handler(StarletteHTTPException)
+    async def handle_http_exception(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+        error_code = _HTTP_STATUS_ERROR_CODES.get(exc.status_code, "HTTP_ERROR")
+        message = exc.detail if isinstance(exc.detail, str) else "Request failed."
+        return _error_response(exc.status_code, error_code, message)
 
     @app.exception_handler(Exception)
     async def handle_unexpected_error(request: Request, exc: Exception) -> JSONResponse:
