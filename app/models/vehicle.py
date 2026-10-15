@@ -30,6 +30,7 @@ class VehicleBase(BaseModel):
     attachment_type: str | None = Field(default=None, max_length=40)
     weight_capacity_kg: float = Field(gt=0)
     volume_capacity_m3: float | None = Field(default=None, gt=0)
+    axle_count: int | None = Field(default=None, ge=1, le=12)
 
 
 class VehicleCreate(VehicleBase):
@@ -58,6 +59,7 @@ class VehicleUpdate(BaseModel):
     attachment_type: str | None = Field(default=None, max_length=40)
     weight_capacity_kg: float | None = Field(default=None, gt=0)
     volume_capacity_m3: float | None = Field(default=None, gt=0)
+    axle_count: int | None = Field(default=None, ge=1, le=12)
     status: VehicleStatus | None = None
 
 
@@ -97,4 +99,5 @@ class VehicleCapacityOut(BaseModel):
     width_m: float | None = None
     weight_capacity_kg: float
     volume_capacity_m3: float | None = None
+    axle_count: int | None = None
     status: VehicleStatus
