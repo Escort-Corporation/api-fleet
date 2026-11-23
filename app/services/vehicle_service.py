@@ -7,6 +7,7 @@ Todas as escritas usam o client com secret key (bypass de RLS); a autorização
 
 from datetime import datetime, timezone
 
+from app.core.config import get_settings
 from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError, ValidationError
 from app.core.supabase_client import get_supabase_admin_client
 from app.models.vehicle import (
@@ -18,7 +19,11 @@ from app.models.vehicle import (
     normalize_plate,
 )
 
-_ELIGIBLE_OWNER_TYPES = {"trucker", "carrier"}
+# MVP (REGRAS_NEGOCIO_MVP.md): só ECF (carrier) tem frota na plataforma. O motorista autônomo
+# (trucker dono de veículo) está PREPARADO e DESLIGADO (MOTORISTA_AUTONOMO.md): só entra com
+# AUTONOMOUS_DRIVERS_ENABLED, que por sua vez exige jurídico, seguro e RNTRC/CIOT.
+def _eligible_owner_types() -> set[str]:
+    return {"carrier", "trucker"} if get_settings().autonomous_drivers_enabled else {"carrier"}
 
 
 def _now_iso() -> str:
@@ -27,14 +32,16 @@ def _now_iso() -> str:
 
 def _resolve_owner_type(user_id: str) -> str:
     """Lê o tipo do usuário autenticado em public.profiles (mesmo banco, leitura direta).
-    Só trucker/carrier podem ser donos de veículo (ARCHITECTURE.md §4)."""
+    Só carrier (ECF) pode ser dono de veículo no MVP — sem motorista autônomo."""
     client = get_supabase_admin_client()
     res = client.table("profiles").select("user_type").eq("id", user_id).limit(1).execute()
     if not res.data:
         raise ForbiddenError("Perfil não encontrado para o usuário autenticado.")
     user_type = (res.data[0].get("user_type") or "").lower()
-    if user_type not in _ELIGIBLE_OWNER_TYPES:
-        raise ForbiddenError("Apenas transportador (trucker) ou transportadora (carrier) podem ter veículos.")
+    if user_type not in _eligible_owner_types():
+        raise ForbiddenError(
+            "Apenas a transportadora (ECF, carrier) pode ter veículos. Motorista autônomo está desligado no MVP."
+        )
     return user_type
 
 
@@ -173,6 +180,13 @@ def transfer_ownership(user_id: str, vehicle_id: str, payload: TransferRequest) 
     )
     if not new_owner.data:
         raise NotFoundError("Novo dono não encontrado.")
+    # O tipo vem do perfil, nunca do payload: confiar em `new_owner_type` deixaria registrar
+    # um trucker como "carrier" e burlar a regra de que só ECF tem frota (MVP).
+    new_owner_type = (new_owner.data[0].get("user_type") or "").lower()
+    if new_owner_type not in _eligible_owner_types():
+        raise ForbiddenError(
+            "O novo dono precisa ser uma transportadora (ECF, carrier). Motorista autônomo está desligado no MVP."
+        )
 
     # Fecha a propriedade vigente e abre a nova. Efeito imediato, sem aprovação (§2).
     client.table("vehicle_ownerships").update({"ended_at": _now_iso()}).eq("id", ownership["id"]).execute()
@@ -182,7 +196,7 @@ def transfer_ownership(user_id: str, vehicle_id: str, payload: TransferRequest) 
             .insert(
                 {
                     "vehicle_id": vehicle_id,
-                    "owner_type": payload.new_owner_type,
+                    "owner_type": new_owner_type,
                     "owner_id": payload.new_owner_id,
                     "started_at": _now_iso(),
                 }

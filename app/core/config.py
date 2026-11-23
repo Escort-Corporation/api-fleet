@@ -2,8 +2,10 @@ from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.core.autonomy import AutonomySettings
 
-class Settings(BaseSettings):
+
+class Settings(AutonomySettings, BaseSettings):
     """Application configuration, loaded from environment variables / .env."""
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")

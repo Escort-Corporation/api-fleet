@@ -18,6 +18,9 @@ Stack: Python / FastAPI. Valida o Bearer token do Supabase Auth (mesmo projeto d
 | `app/models/vehicle.py` | Schemas Pydantic + normalização de placa |
 | `app/core/` | Config, client Supabase, hierarquia `AppError` |
 | `migrations/001_fleet_init.sql` | `vehicles`, `vehicle_ownerships`, trigger, RLS (aplicar no Supabase) |
+| `migrations/003_carrier_drivers.sql` | Vínculo motorista ↔ ECF (`carrier_drivers`) — MVP |
+| `app/api/routers/drivers.py` | `/drivers` — a ECF vincula/lista/desvincula motoristas; o motorista vê e encerra o próprio vínculo |
+| `tests/` | `pip install -r requirements-dev.txt && pytest` (Supabase simulado em memória) |
 
 ## Endpoints
 
@@ -30,7 +33,14 @@ prefixo com `handle_path`. Pelo gateway: `POST /fleet/vehicles` → aqui `POST /
 | `GET` | `/vehicles` | Lista os veículos cujo dono vigente é o usuário |
 | `GET` | `/vehicles/{id}` | Consulta um veículo (só o dono vigente) |
 | `PATCH` | `/vehicles/{id}` | Atualiza specs/acoplamento/status (`inactive` = desativar) |
-| `POST` | `/vehicles/{id}/transfer` | Transfere propriedade (efeito imediato, sem aprovação na v1) |
+| `POST` | `/vehicles/{id}/transfer` | Transfere propriedade (efeito imediato, sem aprovação na v1). Só para outra ECF |
+| `POST` | `/drivers` | A ECF vincula um motorista pelo e-mail (`{"driver_email"}`) |
+| `GET` | `/drivers` | Motoristas vigentes da ECF |
+| `DELETE` | `/drivers/{driver_id}` | A ECF encerra o vínculo (histórico preservado) |
+| `GET` | `/drivers/me` | O motorista vê a ECF para a qual opera |
+| `DELETE` | `/drivers/me` | O motorista encerra o próprio vínculo |
+
+**MVP** (`REGRAS_NEGOCIO_MVP.md` na raiz): só a transportadora (ECF, `carrier`) tem veículo — motorista autônomo está fora. O motorista é empregado da ECF e pago por ela (nunca pela Escort); o vínculo em `carrier_drivers` deixa ele operar os fretes da ECF (iniciar viagem, confirmar entrega, publicar posição). Um motorista tem uma ECF vigente por vez.
 | `GET` | `/health` | Health check |
 
 ## Desenvolvimento local
