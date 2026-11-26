@@ -73,6 +73,9 @@ class InternalError(AppError):
 # Reference: https://supabase.com/docs/guides/auth/debugging/error-codes
 _AUTH_ERROR_MAP: dict[str, tuple[type[AppError], str]] = {
     "session_not_found": (UnauthorizedError, "Your session has expired. Please log in again."),
+    # Token inválido, malformado ou expirado: o Supabase responde 403 bad_jwt. É 401 para o
+    # cliente (renovar a sessão), não erro interno. Mesmo mapeamento do api-auth/api-matching.
+    "bad_jwt": (UnauthorizedError, "Invalid or expired access token."),
     "user_banned": (ForbiddenError, "This account has been suspended."),
 }
 
